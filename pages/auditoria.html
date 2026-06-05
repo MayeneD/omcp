@@ -1,0 +1,34 @@
+<div class="content">
+  <div class="page-header">
+    <div class="page-title">Conformidade<span>Log de Auditoria</span></div>
+    <button class="btn btn-primary" id="btn-exportar">⬇ Exportar CSV</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Eventos do Sistema — Registro Imutável</div>
+    <div id="lista-auditoria"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
+<script type="module">
+import { get, toast } from '/js/api.js';
+
+async function carregar() {
+  const logs = await get('/api/auditoria');
+  const el = document.getElementById('lista-auditoria');
+  if (!logs.length) { el.innerHTML = '<div class="empty">Nenhum evento registrado</div>'; return; }
+  el.innerHTML = `<div style="display:flex;flex-direction:column;">
+    ${logs.map((l, i) => `
+      <div class="log-entry" style="${i===logs.length-1?'border:none':''}">
+        <span class="log-time">${l.timestamp}</span>
+        <span class="log-user">${l.usuario}</span>
+        <span class="log-action">${l.acao}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+document.getElementById('btn-exportar').addEventListener('click', () => {
+  toast('Exportando log...', 'info');
+  window.location.href = '/api/auditoria/exportar';
+});
+
+carregar();
+</script>

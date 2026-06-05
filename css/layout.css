@@ -1,0 +1,51 @@
+.screen { display: none; width: 100%; height: 100vh; flex-direction: column; }
+.screen.active { display: flex; animation: fadeIn 0.2s ease; }
+
+.topnav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 58px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(59,130,196,0.06);
+}
+.topnav .logo {
+  color: var(--accent); font-size: 1rem; font-weight: 600;
+  letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px;
+}
+.topnav .logo-icon {
+  width: 32px; height: 32px;
+  background: var(--accent-light); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+.topnav .nav-links { display: flex; gap: 2px; }
+.nav-btn {
+  padding: 7px 14px;
+  background: transparent; border: none;
+  color: var(--muted2); font-family: var(--font); font-size: 0.82rem; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  border-radius: var(--radius-sm);
+}
+.nav-btn:hover { color: var(--accent); background: var(--accent-light); }
+.nav-btn.active { color: var(--accent); background: var(--accent-light); }
+.topnav .status-bar { display: flex; gap: 14px; align-items: center; font-size: 0.75rem; color: var(--muted2); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent4); animation: pulse 2.5s infinite; }
+
+.content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 18px; }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.page-title { font-size: 0.72rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+.page-title span { color: var(--text); display: block; font-size: 1.3rem; font-weight: 600; margin-top: 3px; letter-spacing: 0; text-transform: none; }
+
+.mission-active {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; border-radius: 20px;
+  background: rgba(58,170,124,0.12); color: var(--accent4);
+  font-size: 0.75rem; font-weight: 500;
+  border: 1px solid rgba(58,170,124,0.25);
+}

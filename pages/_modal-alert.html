@@ -1,0 +1,18 @@
+<div class="modal-overlay" id="alertModal">
+  <div class="modal">
+    <h3>🚨 Detalhes do Alerta Crítico</h3>
+    <div style="display:grid;gap:10px;font-size:0.82rem;margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">ID do Alerta</span><span style="font-family:var(--font-mono)">ALT-20260609-001</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">Sensor</span><span style="font-family:var(--font-mono)">PROP-CAM-001</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">Valor Detectado</span><span style="color:var(--critical);font-weight:600">11.2 PSI</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">Limiar Configurado</span><span>15.0 PSI (mínimo)</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">Severidade</span><span class="badge badge-critical">Crítico</span></div>
+      <div style="display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="color:var(--muted2)">Timestamp</span><span style="font-family:var(--font-mono)">09/06/2026 07:43:21 UTC</span></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-success" style="flex:1" onclick="closeModal()">✓ Confirmar</button>
+      <button class="btn btn-danger"  style="flex:1" onclick="closeModal()">↑ Escalar</button>
+      <button class="btn" style="flex:1;border-color:var(--border2);color:var(--muted2)" onclick="closeModal()">✕ Fechar</button>
+    </div>
+  </div>
+</div>

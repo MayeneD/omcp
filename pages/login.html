@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — OMCP</title>
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/login.css">
+</head>
+<body>
+<div class="screen active" id="screen-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-icon">🛰️</div>
+      <h1>OMCP</h1>
+      <p>Plataforma de Controle de Missão Orbital</p>
+    </div>
+    <div id="login-erro" style="display:none;padding:10px 14px;background:rgba(220,38,38,0.07);
+      border:1px solid rgba(220,38,38,0.25);border-radius:var(--radius-sm);
+      color:var(--critical);font-size:0.78rem;margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="email" type="text" value="c.silva@omcp.gov" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-input" id="senha" type="password" value="admin123" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Missão</label>
+      <select class="form-select" id="missao">
+        <option value="LUNA-7">LUNA-7 — Missão Lunar Alpha</option>
+        <option value="MARS-3">MARS-3 — Exploração Marciana</option>
+        <option value="ISS-Dock">ISS-Dock — Estação Orbital</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="btn-login"
+      style="width:100%;padding:12px;font-size:0.88rem;margin-top:6px;">
+      Entrar →
+    </button>
+    <div style="text-align:center;margin-top:20px;font-size:0.68rem;color:var(--muted)">
+      Acesso restrito · v4.0 · TLS 1.3 · FIAP Aerospace Systems<br>
+      <span style="margin-top:6px;display:block;">
+        Usuários de teste: c.silva@omcp.gov / admin123 &nbsp;|&nbsp; a.ferreira@omcp.gov / op123
+      </span>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { post, setUsuario } from '/js/api.js';
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email  = document.getElementById('email').value.trim();
+    const senha  = document.getElementById('senha').value;
+    const missao = document.getElementById('missao').value;
+    const erro   = document.getElementById('login-erro');
+    erro.style.display = 'none';
+    const btn = document.getElementById('btn-login');
+    btn.textContent = 'Autenticando...'; btn.disabled = true;
+    const res = await post('/api/login', { email, senha, missao });
+    if (res.ok) {
+      setUsuario(res.usuario.email.split('@')[0]);
+      localStorage.setItem('omcp_missao', missao);
+      window.location.href = '/dashboard';
+    } else {
+      erro.textContent = res.erro || 'Credenciais inválidas';
+      erro.style.display = 'block';
+      btn.textContent = 'Entrar →'; btn.disabled = false;
+    }
+  });
+  document.getElementById('senha').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<div class="content">
+  <div class="page-header"><div class="page-title">Documentação<span>Geração de Relatórios</span></div></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Configurar Relatório</div>
+      <div class="form-group"><label class="form-label">Tipo de Relatório</label>
+        <select class="form-select" id="r-tipo">
+          <option>Análise Preditiva Completa</option>
+          <option>Histórico de Alertas</option>
+          <option>Status dos Subsistemas</option>
+          <option>Log de Auditoria</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Período</label>
+        <select class="form-select" id="r-periodo">
+          <option>Últimas 24 horas</option><option>Últimos 7 dias</option>
+          <option>Último mês</option><option>Intervalo customizado</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Missão</label>
+        <select class="form-select"><option>LUNA-7 — Missão Lunar Alpha</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Formato de Saída</label>
+        <select class="form-select" id="r-formato">
+          <option>PDF</option><option>CSV</option>
+        </select>
+      </div>
+      <div id="pdf-aviso" style="display:none;padding:10px 14px;background:rgba(217,119,6,0.07);
+        border:1px solid rgba(217,119,6,0.25);border-radius:var(--radius-sm);
+        color:var(--yellow);font-size:0.75rem;margin-bottom:14px;">
+        Para gerar PDF instale: <strong>pip install reportlab</strong>
+      </div>
+      <button class="btn btn-primary" id="btn-gerar" style="width:100%;padding:12px;">
+        ⬇ Gerar e Exportar Relatório
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-title">Relatórios Gerados Recentemente</div>
+      <div id="lista-relatorios"><div class="loading">Carregando...</div></div>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { get, post, toast, getUsuario } from '/js/api.js';
+
+async function carregarLista() {
+  const lista = await get('/api/relatorios');
+  const el = document.getElementById('lista-relatorios');
+  if (!lista.length) { el.innerHTML = '<div class="empty">Nenhum relatório gerado ainda</div>'; return; }
+  el.innerHTML = `<table class="table">
+    <thead><tr><th>Data/Hora</th><th>Tipo</th><th>Período</th><th>Formato</th><th>Ação</th></tr></thead>
+    <tbody>${lista.map(r => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:0.75rem">${r.data_hora}</td>
+        <td>${r.tipo}</td><td>${r.periodo}</td><td>${r.formato}</td>
+        <td><a href="/relatorios/${r.arquivo}" download>
+          <button class="btn btn-success" style="padding:4px 10px;font-size:0.65rem">Baixar</button>
+        </a></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+document.getElementById('btn-gerar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-gerar');
+  const tipo    = document.getElementById('r-tipo').value;
+  const periodo = document.getElementById('r-periodo').value;
+  const formato = document.getElementById('r-formato').value;
+  btn.textContent = 'Gerando...'; btn.disabled = true;
+  document.getElementById('pdf-aviso').style.display = 'none';
+
+  const res = await post('/api/relatorios/gerar', { tipo, periodo, formato, _autor: getUsuario() });
+  btn.textContent = '⬇ Gerar e Exportar Relatório'; btn.disabled = false;
+
+  if (res.ok) {
+    toast(`${formato} gerado! Baixando...`, 'ok');
+    window.location.href = res.url;
+    carregarLista();
+  } else {
+    if (res.erro && res.erro.includes('reportlab')) {
+      document.getElementById('pdf-aviso').style.display = 'block';
+    }
+    toast(res.erro || 'Erro ao gerar relatório', 'erro');
+  }
+});
+
+carregarLista();
+</script>

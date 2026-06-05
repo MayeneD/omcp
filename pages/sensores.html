@@ -1,0 +1,164 @@
+<div class="content">
+  <div class="page-header">
+    <div class="page-title">Monitoramento<span>Painel de Sensores</span></div>
+    <button class="btn btn-primary" id="btn-novo-sensor">+ Cadastrar Sensor</button>
+  </div>
+  <div class="grid3" style="margin-bottom:18px;" id="sparklines-container"></div>
+  <div class="card">
+    <div class="card-title">Lista de Sensores</div>
+    <div id="tabela-sensores"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal sensor -->
+<div class="modal-overlay" id="sensorModal">
+  <div class="modal" style="max-width:540px">
+    <h3 id="sensor-modal-titulo">Cadastrar Sensor</h3>
+    <div class="modal-form">
+      <input type="hidden" id="s-id-original">
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">ID do Sensor</label><input class="form-input" id="s-id" placeholder="EX: TEMP-001"/></div>
+        <div class="form-group"><label class="form-label">Nome</label><input class="form-input" id="s-nome"/></div>
+      </div>
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Tipo</label>
+          <select class="form-select" id="s-tipo">
+            <option>Pressão</option><option>Temperatura</option><option>Carga</option>
+            <option>Radiação</option><option>Orientação</option><option>Sinal</option><option>Nível</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Missão</label>
+          <select class="form-select" id="s-missao">
+            <option>LUNA-7</option><option>MARS-3</option><option>ISS-Dock</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Leitura Atual</label><input class="form-input" id="s-leitura" type="number" step="any"/></div>
+        <div class="form-group"><label class="form-label">Unidade</label><input class="form-input" id="s-unidade" placeholder="PSI, °C, %, ..."/></div>
+      </div>
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Limiar Mínimo</label><input class="form-input" id="s-min" type="number" step="any"/></div>
+        <div class="form-group"><label class="form-label">Limiar Máximo</label><input class="form-input" id="s-max" type="number" step="any"/></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-salvar-sensor">Salvar</button>
+      <button class="btn btn-danger"  id="btn-deletar-sensor" style="display:none">Excluir</button>
+      <button class="btn" style="border-color:var(--border2);color:var(--muted2)" onclick="closeSensorModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { get, post, put, del, toast, getUsuario } from '/js/api.js';
+
+const BADGE = { OK:'badge-ok', Médio:'badge-medium', Alto:'badge-high', Crítico:'badge-critical' };
+const COR   = { OK:'var(--accent4)', Médio:'var(--yellow)', Alto:'var(--high)', Crítico:'var(--critical)' };
+
+async function carregar() {
+  const sensores = await get('/api/sensores');
+
+  // Sparklines (top 3 não-OK)
+  const dest = sensores.filter(s => s.status !== 'OK').slice(0,3);
+  const sc = document.getElementById('sparklines-container');
+  sc.innerHTML = dest.map(s => `
+    <div class="card">
+      <div class="card-title">${s.id} — ${s.tipo}</div>
+      <svg class="sparkline" viewBox="0 0 200 60">
+        <polyline points="0,40 40,35 80,30 120,25 160,15 200,${s.status==='Crítico'?5:10}"
+          fill="none" stroke="${COR[s.status]}" stroke-width="2"/>
+        <polyline points="0,40 40,35 80,30 120,25 160,15 200,${s.status==='Crítico'?5:10} 200,60 0,60"
+          fill="${COR[s.status].replace(')',',0.06)').replace('var(','rgba(').replace('--critical','220,38,38').replace('--high','234,124,0').replace('--yellow','217,119,6').replace('--accent4','58,170,124')}" stroke="none"/>
+        ${s.limiar_max ? `<line x1="0" y1="20" x2="200" y2="20" stroke="rgba(217,119,6,0.5)" stroke-width="1" stroke-dasharray="4,3"/>` : ''}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-top:8px;">
+        <span style="color:${COR[s.status]};font-weight:600">${s.leitura} ${s.unidade}</span>
+        <span class="badge ${BADGE[s.status]}">${s.status}</span>
+      </div>
+    </div>`).join('');
+
+  // Tabela
+  const tabela = document.getElementById('tabela-sensores');
+  tabela.innerHTML = `<table class="table">
+    <thead><tr><th>ID</th><th>Nome</th><th>Tipo</th><th>Leitura</th><th>Unidade</th>
+      <th>Limiar Mín</th><th>Limiar Máx</th><th>Status</th><th>Ação</th></tr></thead>
+    <tbody>${sensores.map(s => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:0.75rem">${s.id}</td>
+        <td>${s.nome}</td><td>${s.tipo}</td>
+        <td style="color:${COR[s.status]};font-weight:600">${s.leitura}</td>
+        <td>${s.unidade}</td><td>${s.limiar_min ?? '—'}</td><td>${s.limiar_max ?? '—'}</td>
+        <td><span class="badge ${BADGE[s.status]}">${s.status}</span></td>
+        <td><button class="btn btn-primary" style="padding:4px 10px;font-size:0.65rem"
+          onclick="editarSensor('${s.id}')">Editar</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+window.closeSensorModal = () => document.getElementById('sensorModal').classList.remove('open');
+document.getElementById('sensorModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('sensorModal')) closeSensorModal();
+});
+
+function abrirModal(sensor = null) {
+  const isEdicao = !!sensor;
+  document.getElementById('sensor-modal-titulo').textContent = isEdicao ? 'Editar Sensor' : 'Cadastrar Sensor';
+  document.getElementById('s-id').value       = sensor?.id       || '';
+  document.getElementById('s-id').disabled    = isEdicao;
+  document.getElementById('s-id-original').value = sensor?.id   || '';
+  document.getElementById('s-nome').value     = sensor?.nome     || '';
+  document.getElementById('s-leitura').value  = sensor?.leitura  || '';
+  document.getElementById('s-unidade').value  = sensor?.unidade  || '';
+  document.getElementById('s-min').value      = sensor?.limiar_min ?? '';
+  document.getElementById('s-max').value      = sensor?.limiar_max ?? '';
+  if (sensor?.tipo) document.getElementById('s-tipo').value   = sensor.tipo;
+  if (sensor?.missao) document.getElementById('s-missao').value = sensor.missao;
+  document.getElementById('btn-deletar-sensor').style.display = isEdicao ? 'block' : 'none';
+  document.getElementById('sensorModal').classList.add('open');
+}
+
+window.editarSensor = async (id) => {
+  const sensor = await get(`/api/sensores/${id}`);
+  abrirModal(sensor);
+};
+
+document.getElementById('btn-novo-sensor').addEventListener('click', () => abrirModal());
+
+document.getElementById('btn-salvar-sensor').addEventListener('click', async () => {
+  const idOriginal = document.getElementById('s-id-original').value;
+  const dados = {
+    id:        document.getElementById('s-id').value.trim(),
+    nome:      document.getElementById('s-nome').value.trim(),
+    tipo:      document.getElementById('s-tipo').value,
+    leitura:   document.getElementById('s-leitura').value,
+    unidade:   document.getElementById('s-unidade').value.trim(),
+    limiar_min:document.getElementById('s-min').value,
+    limiar_max:document.getElementById('s-max').value,
+    missao:    document.getElementById('s-missao').value,
+    _autor:    getUsuario(),
+  };
+  if (!dados.id || !dados.nome || !dados.leitura) {
+    toast('Preencha ID, nome e leitura', 'erro'); return;
+  }
+  const res = idOriginal
+    ? await put(`/api/sensores/${idOriginal}`, dados)
+    : await post('/api/sensores', dados);
+  if (res.ok) {
+    toast(idOriginal ? 'Sensor atualizado' : 'Sensor cadastrado', 'ok');
+    closeSensorModal(); carregar();
+  } else {
+    toast(res.erro || 'Erro ao salvar', 'erro');
+  }
+});
+
+document.getElementById('btn-deletar-sensor').addEventListener('click', async () => {
+  const id = document.getElementById('s-id-original').value;
+  if (!confirm(`Excluir sensor ${id}?`)) return;
+  const res = await del(`/api/sensores/${id}?autor=${getUsuario()}`);
+  if (res.ok) { toast('Sensor removido', 'ok'); closeSensorModal(); carregar(); }
+  else toast(res.erro || 'Erro ao excluir', 'erro');
+});
+
+carregar();
+</script>

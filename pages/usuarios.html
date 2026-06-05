@@ -1,0 +1,140 @@
+<div class="content">
+  <div class="page-header">
+    <div class="page-title">Segurança<span>Gerenciamento de Usuários</span></div>
+    <button class="btn btn-primary" id="btn-novo-usuario">+ Novo Usuário</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Usuários Cadastrados — Controle RBAC</div>
+    <div id="tabela-usuarios"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal usuário -->
+<div class="modal-overlay" id="usuarioModal">
+  <div class="modal" style="max-width:500px">
+    <h3 id="user-modal-titulo">Novo Usuário</h3>
+    <div class="modal-form">
+      <input type="hidden" id="u-id-original">
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" id="u-nome"/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="u-email" type="email"/></div>
+      </div>
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Perfil</label>
+          <select class="form-select" id="u-perfil">
+            <option>Admin</option><option>Operador</option><option>Engenheiro</option><option>Analista</option>
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Missão</label>
+          <select class="form-select" id="u-missao">
+            <option>LUNA-7</option><option>MARS-3</option><option>ISS-Dock</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-select" id="u-status"><option>Ativo</option><option>Inativo</option></select>
+        </div>
+        <div class="form-group"><label class="form-label">Senha <span id="senha-hint" style="font-weight:400;text-transform:none">(deixe vazio para manter)</span></label>
+          <input class="form-input" id="u-senha" type="password" placeholder="Nova senha..."/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btn-salvar-usuario">Salvar</button>
+      <button class="btn btn-danger"  id="btn-deletar-usuario" style="display:none">Excluir</button>
+      <button class="btn" style="border-color:var(--border2);color:var(--muted2)" onclick="closeUsuarioModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { get, post, put, del, toast, getUsuario } from '/js/api.js';
+
+const PERFIL_BADGE = {
+  Admin:'badge-critical', Operador:'badge-ok',
+  Engenheiro:'badge-medium', Analista:'badge-confirmado'
+};
+
+async function carregar() {
+  const usuarios = await get('/api/usuarios');
+  const el = document.getElementById('tabela-usuarios');
+  el.innerHTML = `<table class="table">
+    <thead><tr><th>ID</th><th>Nome</th><th>Perfil</th><th>Email</th><th>Missão</th><th>Status</th><th>Ações</th></tr></thead>
+    <tbody>${usuarios.map(u => `
+      <tr>
+        <td style="font-family:var(--font-mono);font-size:0.75rem">${u.id}</td>
+        <td>${u.nome}</td>
+        <td><span class="badge ${PERFIL_BADGE[u.perfil]||'badge-ok'}">${u.perfil}</span></td>
+        <td style="font-size:0.78rem">${u.email}</td>
+        <td>${u.missao}</td>
+        <td><span class="badge ${u.status==='Ativo'?'badge-ok':'badge-medium'}">${u.status}</span></td>
+        <td><button class="btn btn-warning" style="padding:4px 10px;font-size:0.65rem"
+          onclick="editarUsuario('${u.id}')">Editar</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+window.closeUsuarioModal = () => document.getElementById('usuarioModal').classList.remove('open');
+document.getElementById('usuarioModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('usuarioModal')) closeUsuarioModal();
+});
+
+function abrirModal(usuario = null) {
+  const isEdicao = !!usuario;
+  document.getElementById('user-modal-titulo').textContent = isEdicao ? 'Editar Usuário' : 'Novo Usuário';
+  document.getElementById('u-id-original').value = usuario?.id || '';
+  document.getElementById('u-nome').value   = usuario?.nome   || '';
+  document.getElementById('u-email').value  = usuario?.email  || '';
+  document.getElementById('u-senha').value  = '';
+  document.getElementById('senha-hint').style.display = isEdicao ? 'inline' : 'none';
+  if (usuario?.perfil)  document.getElementById('u-perfil').value  = usuario.perfil;
+  if (usuario?.missao)  document.getElementById('u-missao').value  = usuario.missao;
+  if (usuario?.status)  document.getElementById('u-status').value  = usuario.status;
+  document.getElementById('btn-deletar-usuario').style.display = isEdicao ? 'block' : 'none';
+  document.getElementById('usuarioModal').classList.add('open');
+}
+
+window.editarUsuario = async (id) => {
+  const u = await get(`/api/usuarios/${id}`);
+  abrirModal(u);
+};
+
+document.getElementById('btn-novo-usuario').addEventListener('click', () => abrirModal());
+
+document.getElementById('btn-salvar-usuario').addEventListener('click', async () => {
+  const idOriginal = document.getElementById('u-id-original').value;
+  const dados = {
+    nome:   document.getElementById('u-nome').value.trim(),
+    email:  document.getElementById('u-email').value.trim(),
+    perfil: document.getElementById('u-perfil').value,
+    missao: document.getElementById('u-missao').value,
+    status: document.getElementById('u-status').value,
+    senha:  document.getElementById('u-senha').value,
+    _autor: getUsuario(),
+  };
+  if (!dados.nome || !dados.email) { toast('Nome e email são obrigatórios', 'erro'); return; }
+  if (!idOriginal && !dados.senha) { toast('Informe uma senha para o novo usuário', 'erro'); return; }
+
+  const res = idOriginal
+    ? await put(`/api/usuarios/${idOriginal}`, dados)
+    : await post('/api/usuarios', dados);
+
+  if (res.ok) {
+    toast(idOriginal ? 'Usuário atualizado' : 'Usuário criado', 'ok');
+    closeUsuarioModal(); carregar();
+  } else {
+    toast(res.erro || 'Erro ao salvar', 'erro');
+  }
+});
+
+document.getElementById('btn-deletar-usuario').addEventListener('click', async () => {
+  const id = document.getElementById('u-id-original').value;
+  if (!confirm(`Excluir usuário ${id}?`)) return;
+  const res = await del(`/api/usuarios/${id}?autor=${getUsuario()}`);
+  if (res.ok) { toast('Usuário removido', 'ok'); closeUsuarioModal(); carregar(); }
+  else toast(res.erro || 'Erro ao excluir', 'erro');
+});
+
+carregar();
+</script>

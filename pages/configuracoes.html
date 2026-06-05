@@ -1,0 +1,70 @@
+<div class="content">
+  <div class="page-header"><div class="page-title">Sistema<span>Configurações da Plataforma</span></div></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Configurações Gerais</div>
+      <div class="form-group"><label class="form-label">Nome da Plataforma</label>
+        <input class="form-input" id="cfg-nome"/></div>
+      <div class="form-group"><label class="form-label">Intervalo de Polling (ms)</label>
+        <input class="form-input" id="cfg-polling" type="number"/></div>
+      <div class="form-group"><label class="form-label">Retenção de Logs</label>
+        <select class="form-select" id="cfg-retencao">
+          <option>2 anos (padrão)</option><option>1 ano</option><option>5 anos</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Protocolo de Segurança</label>
+        <select class="form-select" id="cfg-protocolo">
+          <option>TLS 1.3 (recomendado)</option><option>TLS 1.2</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Missão Ativa</label>
+        <select class="form-select" id="cfg-missao">
+          <option>LUNA-7</option><option>MARS-3</option><option>ISS-Dock</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="btn-salvar-cfg" style="width:100%;padding:12px;">Salvar Configurações</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Status dos Módulos</div>
+      <div id="modulos-container" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">Módulo de Ingestão de Dados</span><span class="badge badge-ok">Ativo</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">Engine de Alertas</span><span class="badge badge-ok">Ativo</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">Módulo de IA Preditiva</span><span class="badge badge-ok">Ativo</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">Gerador de Relatórios</span><span class="badge badge-ok">Ativo</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">Sistema de Backup</span><span class="badge badge-ok">Ativo</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);"><span style="font-size:0.82rem;font-weight:500;">API Gateway (TLS 1.3)</span><span class="badge badge-ok">Ativo</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { get, post, toast, getUsuario } from '/js/api.js';
+
+async function carregar() {
+  const cfg = await get('/api/configuracoes');
+  document.getElementById('cfg-nome').value    = cfg.nome_plataforma   || '';
+  document.getElementById('cfg-polling').value = cfg.intervalo_polling || '500';
+  const ret = document.getElementById('cfg-retencao');
+  const pro = document.getElementById('cfg-protocolo');
+  const mis = document.getElementById('cfg-missao');
+  [...ret.options].forEach(o => { if (o.value === cfg.retencao_logs) o.selected = true; });
+  [...pro.options].forEach(o => { if (o.value === cfg.protocolo_seg) o.selected = true; });
+  [...mis.options].forEach(o => { if (o.value === cfg.missao_ativa)  o.selected = true; });
+}
+
+document.getElementById('btn-salvar-cfg').addEventListener('click', async () => {
+  const dados = {
+    nome_plataforma:   document.getElementById('cfg-nome').value.trim(),
+    intervalo_polling: document.getElementById('cfg-polling').value,
+    retencao_logs:     document.getElementById('cfg-retencao').value,
+    protocolo_seg:     document.getElementById('cfg-protocolo').value,
+    missao_ativa:      document.getElementById('cfg-missao').value,
+    _autor:            getUsuario(),
+  };
+  const res = await post('/api/configuracoes', dados);
+  if (res.ok) toast('Configurações salvas com sucesso', 'ok');
+  else toast('Erro ao salvar configurações', 'erro');
+});
+
+carregar();
+</script>

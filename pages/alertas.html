@@ -1,0 +1,127 @@
+<div class="content">
+  <div class="page-header">
+    <div class="page-title">Monitoramento<span>Central de Alertas</span></div>
+    <div style="display:flex;gap:8px;">
+      <select class="form-select" id="filtro-sev" style="width:auto;padding:7px 14px;font-size:0.78rem;">
+        <option value="">Todos os níveis</option>
+        <option>Crítico</option><option>Alto</option><option>Médio</option><option>Baixo</option>
+      </select>
+    </div>
+  </div>
+  <div class="grid4" style="margin-bottom:22px;">
+    <div class="kpi red"><div class="kpi-label">Críticos</div><div class="kpi-value" id="cnt-critico">—</div></div>
+    <div class="kpi" style="border-top:3px solid var(--high);"><div class="kpi-label">Altos</div><div class="kpi-value" id="cnt-alto" style="color:var(--high)">—</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Médios</div><div class="kpi-value" id="cnt-medio">—</div></div>
+    <div class="kpi green"><div class="kpi-label">Baixos</div><div class="kpi-value" id="cnt-baixo">—</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Alertas Ativos — Ordenados por Severidade</div>
+    <div id="lista-alertas"><div class="loading">Carregando...</div></div>
+  </div>
+</div>
+
+<!-- Modal detalhe alerta -->
+<div class="modal-overlay" id="alertModal">
+  <div class="modal">
+    <h3 id="modal-titulo">Detalhes do Alerta</h3>
+    <div style="display:grid;gap:10px;font-size:0.82rem;margin-bottom:22px;" id="modal-campos"></div>
+    <div class="modal-actions">
+      <button class="btn btn-success" id="btn-confirmar">✓ Confirmar</button>
+      <button class="btn btn-danger"  id="btn-escalar">↑ Escalar</button>
+      <button class="btn" style="border-color:var(--border2);color:var(--muted2)" id="btn-fechar-alerta">✕ Fechar</button>
+      <button class="btn" style="border-color:var(--border2);color:var(--muted2)" onclick="closeModal()">— Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { get, post, toast, getUsuario } from '/js/api.js';
+
+const BADGE = { Crítico:'badge-critical', Alto:'badge-high', Médio:'badge-medium', Baixo:'badge-low' };
+const ICON  = { Crítico:'🚨', Alto:'⚠️', Médio:'🔔', Baixo:'ℹ️' };
+const SEV_CLASS = { Crítico:'critical', Alto:'high', Médio:'medium', Baixo:'low' };
+
+let alertaAtual = null;
+
+async function carregar(sev = '') {
+  const url = sev ? `/api/alertas?severidade=${sev}` : '/api/alertas';
+  const [alertas, contagem] = await Promise.all([get(url), get('/api/alertas/contagem')]);
+
+  document.getElementById('cnt-critico').textContent = contagem['Crítico'] || 0;
+  document.getElementById('cnt-alto').textContent    = contagem['Alto']    || 0;
+  document.getElementById('cnt-medio').textContent   = contagem['Médio']   || 0;
+  document.getElementById('cnt-baixo').textContent   = contagem['Baixo']   || 0;
+
+  const lista = document.getElementById('lista-alertas');
+  if (alertas.length === 0) {
+    lista.innerHTML = '<div class="empty">Nenhum alerta encontrado</div>';
+    return;
+  }
+
+  const SBADGE = {
+    Ativo: 'badge-critical', Confirmado: 'badge-confirmado',
+    Escalado: 'badge-escalado', Fechado: 'badge-fechado'
+  };
+
+  lista.innerHTML = alertas.map(a => `
+    <div class="alert-item ${SEV_CLASS[a.severidade]||''}" data-id="${a.id}" style="cursor:pointer">
+      <div class="alert-icon">${ICON[a.severidade]||'🔔'}</div>
+      <div class="alert-body">
+        <div class="alert-title">${a.titulo}</div>
+        <div class="alert-meta">${a.sensor_id} · ${a.valor} · Limiar: ${a.limiar} · ${a.timestamp}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <span class="badge ${BADGE[a.severidade]||''}">${a.severidade}</span>
+        <span class="badge ${SBADGE[a.status]||'badge-ok'}" style="font-size:0.58rem">${a.status}</span>
+      </div>
+    </div>`).join('');
+
+  lista.querySelectorAll('.alert-item').forEach(el => {
+    el.addEventListener('click', () => abrirAlerta(el.dataset.id, alertas));
+  });
+}
+
+function abrirAlerta(id, alertas) {
+  alertaAtual = alertas.find(a => a.id === id);
+  if (!alertaAtual) return;
+  document.getElementById('modal-titulo').textContent = `${ICON[alertaAtual.severidade]} ${alertaAtual.titulo}`;
+  document.getElementById('modal-campos').innerHTML = [
+    ['ID do Alerta', alertaAtual.id],
+    ['Sensor', alertaAtual.sensor_id],
+    ['Valor Detectado', `<span style="color:var(--critical);font-weight:600">${alertaAtual.valor}</span>`],
+    ['Limiar', alertaAtual.limiar],
+    ['Severidade', `<span class="badge ${BADGE[alertaAtual.severidade]}">${alertaAtual.severidade}</span>`],
+    ['Timestamp', alertaAtual.timestamp],
+    ['Status', alertaAtual.status],
+  ].map(([k,v]) => `
+    <div style="display:flex;justify-content:space-between;padding:10px 14px;
+      border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);">
+      <span style="color:var(--muted2)">${k}</span><span>${v}</span>
+    </div>`).join('');
+  document.getElementById('alertModal').classList.add('open');
+}
+
+async function acao(endpoint, msg) {
+  if (!alertaAtual) return;
+  const res = await post(`/api/alertas/${alertaAtual.id}/${endpoint}`, { _autor: getUsuario() });
+  if (res.ok) {
+    toast(msg, 'ok');
+    closeModal();
+    carregar(document.getElementById('filtro-sev').value);
+  } else {
+    toast('Erro ao processar ação', 'erro');
+  }
+}
+
+document.getElementById('btn-confirmar').addEventListener('click', () => acao('confirmar', 'Alerta confirmado'));
+document.getElementById('btn-escalar').addEventListener('click',   () => acao('escalar',   'Alerta escalado para diretor'));
+document.getElementById('btn-fechar-alerta').addEventListener('click', () => acao('fechar', 'Alerta fechado'));
+document.getElementById('filtro-sev').addEventListener('change', e => carregar(e.target.value));
+
+window.closeModal = () => document.getElementById('alertModal').classList.remove('open');
+document.getElementById('alertModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('alertModal')) closeModal();
+});
+
+carregar();
+</script>

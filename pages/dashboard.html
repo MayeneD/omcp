@@ -1,0 +1,82 @@
+<div class="content">
+  <div class="page-header">
+    <div class="page-title">Visão Geral<span>Dashboard de Missão</span></div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div class="mission-active">● <span id="missao-ativa">LUNA-7</span> Ativa</div>
+      <button class="btn btn-danger" onclick="goTo('alertas')" id="btn-criticos">⚠ Carregando...</button>
+    </div>
+  </div>
+  <div class="grid4" style="margin-bottom:22px;">
+    <div class="kpi blue"><div class="kpi-label">Sensores Ativos</div><div class="kpi-value" id="kpi-sensores">—</div><div class="kpi-sub" id="kpi-sensores-sub"></div></div>
+    <div class="kpi red"><div class="kpi-label">Alertas Críticos</div><div class="kpi-value" id="kpi-criticos">—</div><div class="kpi-sub" id="kpi-criticos-sub"></div></div>
+    <div class="kpi green"><div class="kpi-label">Uptime do Sistema</div><div class="kpi-value">99.9%</div><div class="kpi-sub">↑ 30 dias contínuos</div></div>
+    <div class="kpi yellow"><div class="kpi-label">Leituras / min</div><div class="kpi-value">4.8K</div><div class="kpi-sub">Latência média 120ms</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Status dos Subsistemas</div>
+      <div id="gauges-container"><div class="loading">Carregando sensores...</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Últimos Alertas</div>
+      <div id="alertas-recentes"><div class="loading">Carregando alertas...</div></div>
+      <button class="btn btn-primary" style="margin-top:14px;width:100%" onclick="goTo('alertas')">Ver todos os alertas →</button>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { get } from '/js/api.js';
+
+const COR = { OK:'var(--accent4)', Médio:'var(--yellow)', Alto:'var(--high)', Crítico:'var(--critical)' };
+const BADGE = { OK:'badge-ok', Médio:'badge-medium', Alto:'badge-high', Crítico:'badge-critical' };
+
+async function carregarDashboard() {
+  const [sensores, contagem, alertas] = await Promise.all([
+    get('/api/sensores'), get('/api/alertas/contagem'), get('/api/alertas')
+  ]);
+
+  // KPIs
+  document.getElementById('kpi-sensores').textContent = sensores.length;
+  document.getElementById('kpi-sensores-sub').textContent =
+    `${sensores.filter(s=>s.status==='OK').length} OK, ${sensores.filter(s=>s.status==='Crítico').length} críticos`;
+  const nCrit = contagem['Crítico'] || 0;
+  document.getElementById('kpi-criticos').textContent = nCrit;
+  document.getElementById('kpi-criticos-sub').textContent = nCrit > 0 ? 'Requer atenção imediata' : 'Sem alertas críticos';
+  document.getElementById('btn-criticos').textContent = nCrit > 0 ? `⚠ ${nCrit} Crítico${nCrit>1?'s':''}` : '✓ Sem críticos';
+
+  // Gauges
+  const gc = document.getElementById('gauges-container');
+  gc.innerHTML = sensores.slice(0,6).map((s, i) => {
+    const max = s.limiar_max || 100;
+    const pct = Math.min(100, Math.round((s.leitura / max) * 100));
+    const cor = COR[s.status] || COR.OK;
+    const border = i === sensores.length - 1 || i === 5 ? 'border:none' : '';
+    return `<div class="gauge-row" style="${border}">
+      <div class="gauge-name">${s.nome}</div>
+      <div class="gauge-bar-wrap"><div class="gauge-bar-fill" style="width:${pct}%;background:${cor};"></div></div>
+      <div class="gauge-val" style="color:${cor}">${s.leitura} ${s.unidade}</div>
+      <div class="gauge-status"><span class="badge ${BADGE[s.status]||'badge-ok'}">${s.status}</span></div>
+    </div>`;
+  }).join('');
+
+  // Alertas recentes
+  const ar = document.getElementById('alertas-recentes');
+  const ativos = alertas.filter(a => a.status === 'Ativo').slice(0, 4);
+  if (ativos.length === 0) {
+    ar.innerHTML = '<div class="empty">Nenhum alerta ativo</div>';
+  } else {
+    ar.innerHTML = ativos.map(a => {
+      const sev = a.severidade.toLowerCase();
+      return `<div style="display:flex;align-items:center;justify-content:space-between;
+        font-size:0.78rem;padding:9px 12px;background:rgba(220,38,38,0.03);
+        border-left:3px solid var(--${sev==='crítico'?'critical':sev==='alto'?'high':sev==='médio'?'medium':'accent4'});
+        border-radius:0 6px 6px 0;margin-bottom:6px;">
+        <span style="flex:1;margin-right:10px">${a.titulo.substring(0,55)}${a.titulo.length>55?'…':''}</span>
+        <span class="badge ${BADGE[a.severidade]||'badge-ok'}">${a.severidade}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+carregarDashboard();
+</script>
